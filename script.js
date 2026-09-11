@@ -8,10 +8,10 @@ const appData = {
                     <div class="text-6xl text-blue-500 mb-4"><i class="fas fa-users"></i></div>
                     <p class="text-xl">We use <strong>DO</strong> with <span class="text-blue-600 font-bold">I, we, you, they</span>.</p>
                     <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-left space-y-2 font-medium">
-                        <p>🔹 <span class="text-blue-500">I</span> do</p>
-                        <p>🔹 <span class="text-blue-500">We</span> do</p>
-                        <p>🔹 <span class="text-blue-500">You</span> do</p>
-                        <p>🔹 <span class="text-blue-500">They</span> do</p>
+                        <p>• <span class="text-blue-500">I</span> do</p>
+                        <p>• <span class="text-blue-500">We</span> do</p>
+                        <p>• <span class="text-blue-500">You</span> do</p>
+                        <p>• <span class="text-blue-500">They</span> do</p>
                     </div>
                 </div>
             `
@@ -24,9 +24,9 @@ const appData = {
                     <div class="text-6xl text-pink-500 mb-4"><i class="fas fa-user"></i></div>
                     <p class="text-xl">We use <strong>DOES</strong> with <span class="text-pink-600 font-bold">he, she, it</span>.</p>
                     <div class="bg-pink-50 p-4 rounded-xl border border-pink-100 text-left space-y-2 font-medium">
-                        <p>🔸 <span class="text-pink-500">He</span> does</p>
-                        <p>🔸 <span class="text-pink-500">She</span> does</p>
-                        <p>🔸 <span class="text-pink-500">It</span> does</p>
+                        <p>• <span class="text-pink-500">He</span> does</p>
+                        <p>• <span class="text-pink-500">She</span> does</p>
+                        <p>• <span class="text-pink-500">It</span> does</p>
                     </div>
                 </div>
             `
@@ -75,10 +75,10 @@ const appData = {
                         Remember! After do/does, always use the base verb (verb 1)!
                     </div>
                     <div class="bg-red-50 p-4 rounded-xl border border-red-100 text-left text-sm space-y-2">
-                        <p class="text-red-500">❌ Does she <u>plays</u> the piano?</p>
-                        <p class="text-green-600 font-bold border-b pb-2">✅ Does she <u>play</u> the piano?</p>
-                        <p class="text-red-500 pt-2">❌ She does not <u>likes</u> coffee.</p>
-                        <p class="text-green-600 font-bold">✅ She does not <u>like</u> coffee.</p>
+                        <p class="text-red-500">✗ Does she <u>plays</u> the piano?</p>
+                        <p class="text-green-600 font-bold border-b pb-2">✓ Does she <u>play</u> the piano?</p>
+                        <p class="text-red-500 pt-2">✗ She does not <u>likes</u> coffee.</p>
+                        <p class="text-green-600 font-bold">✓ She does not <u>like</u> coffee.</p>
                     </div>
                 </div>
             `
@@ -147,6 +147,69 @@ const app = {
     selectedOption: null,
     buildSelection: [],
 
+    // Theme (persisted, default dark) + helpers
+    shuffle: function(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        }
+        return arr;
+    },
+    initTheme: function() {
+        let t = 'dark';
+        try { t = localStorage.getItem('dd-theme') || 'dark'; } catch (e) {}
+        document.documentElement.setAttribute('data-theme', t);
+        this.syncThemeIcon();
+    },
+    toggleTheme: function() {
+        const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', cur);
+        try { localStorage.setItem('dd-theme', cur); } catch (e) {}
+        this.syncThemeIcon();
+    },
+    syncThemeIcon: function() {
+        const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const icons = document.querySelectorAll('.theme-icon');
+        for (let k = 0; k < icons.length; k++) {
+            icons[k].className = 'theme-icon fas ' + (dark ? 'fa-sun' : 'fa-moon');
+        }
+    },
+    celebrate: function() {
+        try {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            const c = document.getElementById('confetti-canvas');
+            const box = document.getElementById('app');
+            c.width = box.clientWidth; c.height = box.clientHeight;
+            c.classList.remove('hidden');
+            const ctx = c.getContext('2d');
+            const colors = ['#4f6df5', '#ec4899', '#22c55e', '#f59e0b', '#5b8cff'];
+            const parts = [];
+            for (let n = 0; n < 90; n++) {
+                parts.push({
+                    x: Math.random() * c.width, y: -20 - Math.random() * c.height * .3,
+                    w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+                    vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3,
+                    r: Math.random() * Math.PI, vr: -.1 + Math.random() * .2,
+                    col: colors[Math.floor(Math.random() * colors.length)]
+                });
+            }
+            let frames = 0;
+            const tick = function() {
+                ctx.clearRect(0, 0, c.width, c.height);
+                parts.forEach(function(p) {
+                    p.x += p.vx; p.y += p.vy; p.r += p.vr;
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+                    ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                    ctx.restore();
+                });
+                frames++;
+                if (frames < 160) requestAnimationFrame(tick);
+                else c.classList.add('hidden');
+            };
+            requestAnimationFrame(tick);
+        } catch (e) {}
+    },
+
     // Sounds
     playSfx: function(id) {
         const audio = document.getElementById(id);
@@ -159,6 +222,7 @@ const app = {
     playSentenceAudio: function() {
         const q = appData.quiz[this.quizIndex];
         if ('speechSynthesis' in window && q.fullSentence) {
+            window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(q.fullSentence);
             utterance.lang = 'en-US';
             utterance.rate = 0.9;
@@ -189,8 +253,8 @@ const app = {
         const container = document.getElementById('slide-container');
         
         container.innerHTML = `
-            <div class="bg-white p-8 rounded-3xl shadow-lg w-full max-w-sm border-t-8 border-${slide.color}-500 slide-in">
-                <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">${slide.title}</h2>
+            <div class="lesson-card pop p-8 rounded-3xl w-full max-w-sm border-t-8 slide-in" style="border-top-color: ${({blue:'#3b82f6',pink:'#ec4899',green:'#22c55e',purple:'#a855f7',red:'#ef4444'})[slide.color] || '#4f6df5'}">
+                <h2 class="font-display text-2xl font-bold text-center mb-6">${slide.title}</h2>
                 ${slide.content}
             </div>
         `;
@@ -235,11 +299,11 @@ const app = {
         this.lives = 3;
         
         // Shuffle questions
-        appData.quiz.sort(() => Math.random() - 0.5);
+        this.shuffle(appData.quiz);
         // If type build, shuffle words
         appData.quiz.forEach(q => {
             if(q.type === 'build') {
-                q.shuffledWords = [...q.words].sort(() => Math.random() - 0.5);
+                q.shuffledWords = this.shuffle([...q.words]);
             }
         });
 
@@ -279,6 +343,7 @@ const app = {
         // Render progress
         const progress = (this.quizIndex / appData.quiz.length) * 100;
         document.getElementById('quiz-progress').style.width = `${progress}%`;
+        document.getElementById('quiz-counter').textContent = `${this.quizIndex + 1}/${appData.quiz.length}`;
         
         let contentHtml = '';
 
@@ -376,7 +441,7 @@ const app = {
 
     selectOption: function(idx) {
         this.selectedOption = idx;
-        const cards = document.querySelectorAll('.option-card');
+        const cards = document.querySelectorAll('#quiz-container .option-card');
         
         // Reset all
         cards.forEach(card => {
@@ -443,7 +508,7 @@ const app = {
             if (this.selectedOption === null) return;
             isCorrect = this.selectedOption === q.answer;
             // Disable clicks
-            document.querySelectorAll('.option-card').forEach(card => card.style.pointerEvents = 'none');
+            document.querySelectorAll('#quiz-container .option-card').forEach(card => card.style.pointerEvents = 'none');
         } 
         else if (q.type === 'build') {
             if (this.buildSelection.length !== q.words.length) return;
@@ -477,7 +542,7 @@ const app = {
             this.playSfx('sfx-correct');
             
             if(q.type === 'mcq' || q.type === 'dialog') {
-                const cards = document.querySelectorAll('.option-card');
+                const cards = document.querySelectorAll('#quiz-container .option-card');
                 cards[this.selectedOption].classList.replace('border-blue-500', 'border-green-500');
                 cards[this.selectedOption].classList.replace('bg-blue-50', 'bg-green-100');
                 cards[this.selectedOption].classList.replace('ring-blue-100', 'ring-green-100');
@@ -499,7 +564,7 @@ const app = {
             this.updateHeartsUI();
 
             if(q.type === 'mcq' || q.type === 'dialog') {
-                const cards = document.querySelectorAll('.option-card');
+                const cards = document.querySelectorAll('#quiz-container .option-card');
                 cards[this.selectedOption].classList.replace('border-blue-500', 'border-red-500');
                 cards[this.selectedOption].classList.replace('bg-blue-50', 'bg-red-50');
                 cards[this.selectedOption].classList.replace('ring-blue-100', 'ring-red-100');
@@ -543,7 +608,9 @@ const app = {
         const overlay = document.getElementById('quiz-result-overlay');
         overlay.classList.remove('hidden');
         
-        document.getElementById('result-icon').innerText = "💔";
+        const goIcon = document.getElementById('result-icon');
+        goIcon.innerHTML = '<i class="fas fa-heart-broken"></i>';
+        goIcon.style.background = 'linear-gradient(135deg, #64748b, #334155)';
         document.getElementById('result-title').innerText = "Game Over!";
         document.getElementById('result-subtitle').innerHTML = "You ran out of hearts. Try again!";
     },
@@ -559,15 +626,32 @@ const app = {
         document.getElementById('result-subtitle').innerHTML = `You scored <span id="final-score" class="font-bold text-green-500 text-2xl">${this.score}</span> out of ${appData.quiz.length}.`;
         
         const icon = document.getElementById('result-icon');
+        icon.style.background = 'linear-gradient(135deg, #f59e0b, #ec4899)';
         if(this.score === appData.quiz.length) {
-            icon.innerText = "👑";
+            icon.innerHTML = '<i class="fas fa-crown"></i>';
+            this.celebrate();
         } else if(this.score >= appData.quiz.length / 2) {
-            icon.innerText = "👍";
+            icon.innerHTML = '<i class="fas fa-thumbs-up"></i>';
         } else {
-            icon.innerText = "💪";
+            icon.innerHTML = '<i class="fas fa-dumbbell"></i>';
         }
     }
 };
 
 // Initialize
+app.initTheme();
 app.goHome();
+
+// Keyboard: 1-3 pick option, Enter = check / continue
+document.addEventListener('keydown', function(e) {
+    if (app.currentScreen !== 'quiz-screen') return;
+    if (!document.getElementById('quiz-result-overlay').classList.contains('hidden')) return;
+    if (e.key >= '1' && e.key <= '3') {
+        const cards = document.querySelectorAll('#quiz-container .option-card');
+        const i = parseInt(e.key, 10) - 1;
+        if (cards[i] && cards[i].style.pointerEvents !== 'none') app.selectOption(i);
+    } else if (e.key === 'Enter') {
+        if (!document.getElementById('btn-next-quiz').classList.contains('hidden')) app.nextQuestion();
+        else app.checkAnswer();
+    }
+});
