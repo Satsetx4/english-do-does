@@ -11,6 +11,7 @@
         .slide-in { animation: slideIn 0.3s ease-out forwards; }
         .fade-in { animation: fadeIn 0.3s ease-in forwards; }
         .bounce { animation: bounce 0.5s; }
+        .shake { animation: shake 0.5s; }
         
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
@@ -24,9 +25,25 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
 
         .screen { display: none; }
         .screen.active { display: flex; }
+
+        .word-chip {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .word-chip.selected {
+            background-color: #e5e7eb;
+            color: transparent;
+            pointer-events: none;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden text-gray-800 flex justify-center items-center bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100">
@@ -69,7 +86,7 @@
                     <i class="fas fa-arrow-left"></i>
                 </button>
                 <div class="flex-1 text-center font-bold text-lg text-gray-700">Lesson</div>
-                <div class="w-10"></div> <!-- Spacer for balance -->
+                <div class="w-10"></div>
             </div>
             
             <!-- Progress -->
@@ -97,17 +114,22 @@
         <!-- ==================== QUIZ SCREEN ==================== -->
         <div id="quiz-screen" class="screen flex-col bg-slate-50 h-full relative">
              <!-- Header -->
-             <div class="bg-white p-4 shadow-sm flex items-center z-10 shrink-0">
+             <div class="bg-white p-4 shadow-sm flex items-center justify-between z-10 shrink-0">
                 <button onclick="app.goHome()" class="text-gray-400 hover:text-gray-700 text-xl w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition">
                     <i class="fas fa-times"></i>
                 </button>
-                <div class="flex-1 px-4">
+                <div class="flex-1 px-4 flex justify-center">
                      <!-- Progress -->
-                    <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="w-full max-w-[200px] bg-gray-200 rounded-full h-3">
                         <div id="quiz-progress" class="bg-green-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
-                <div class="w-10 text-right font-bold text-gray-500" id="quiz-counter">1/10</div>
+                <!-- Hearts Indicator -->
+                <div id="hearts-container" class="flex gap-1 text-red-500 text-lg">
+                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-heart"></i>
+                </div>
             </div>
 
             <!-- Question Area -->
@@ -116,12 +138,21 @@
             </div>
 
             <!-- Quiz Footer / Check Button -->
-            <div class="p-6 bg-white border-t border-gray-100 shrink-0" id="quiz-footer">
+            <div class="p-6 bg-white border-t border-gray-100 shrink-0 relative z-30" id="quiz-footer">
                 <!-- Wrapper for absolute positioning of feedback -->
                 <div class="relative w-full">
-                    <div id="feedback-message" class="absolute bottom-full mb-4 left-0 w-full rounded-xl p-4 font-bold text-lg hidden flex items-center gap-3 slide-in">
-                        <div id="feedback-icon" class="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0"></div>
-                        <span id="feedback-text"></span>
+                    <div id="feedback-message" class="absolute bottom-full mb-4 left-0 w-full rounded-2xl p-5 shadow-lg hidden flex-col gap-3 slide-in">
+                        <div class="flex items-start gap-3">
+                            <div id="feedback-icon" class="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 text-xl"></div>
+                            <div class="flex-1">
+                                <span id="feedback-text" class="font-extrabold text-xl block mb-1"></span>
+                                <span id="feedback-explanation" class="text-sm opacity-90 block"></span>
+                            </div>
+                            <!-- Audio Button -->
+                            <button id="btn-audio" onclick="app.playSentenceAudio()" class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center shrink-0 transition">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <button id="btn-check" onclick="app.checkAnswer()" class="w-full bg-gray-300 text-gray-500 font-bold py-4 px-6 rounded-2xl text-xl transition pointer-events-none">
@@ -133,17 +164,17 @@
                 </div>
             </div>
             
-            <!-- Result Overlay -->
-            <div id="quiz-result-overlay" class="absolute inset-0 bg-white flex flex-col justify-center items-center p-8 hidden z-20">
+            <!-- Result Overlay / Game Over Overlay -->
+            <div id="quiz-result-overlay" class="absolute inset-0 bg-white flex flex-col justify-center items-center p-8 hidden z-40 text-center">
                 <div id="result-icon" class="text-8xl mb-6 bounce">🏆</div>
-                <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Quiz Complete!</h2>
-                <p class="text-gray-500 text-lg mb-8">You scored <span id="final-score" class="font-bold text-green-500 text-2xl">8</span> out of 10.</p>
+                <h2 id="result-title" class="text-3xl font-extrabold text-gray-800 mb-2">Quiz Complete!</h2>
+                <p id="result-subtitle" class="text-gray-500 text-lg mb-8">You scored <span id="final-score" class="font-bold text-green-500 text-2xl">8</span> out of 10.</p>
                 
                 <div class="w-full space-y-4">
-                    <button onclick="app.startQuiz()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg transform transition active:scale-95 text-lg">
+                    <button onclick="app.startQuiz()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg transform transition active:scale-95 text-lg">
                         Play Again
                     </button>
-                    <button onclick="app.goHome()" class="w-full border-2 border-gray-200 text-gray-700 font-bold py-4 px-6 rounded-2xl transform transition active:scale-95 text-lg">
+                    <button onclick="app.goHome()" class="w-full border-2 border-gray-200 text-gray-700 font-bold py-4 px-6 rounded-2xl transform transition active:scale-95 text-lg hover:bg-gray-50">
                         Back to Home
                     </button>
                 </div>
@@ -156,6 +187,7 @@
     <audio id="sfx-correct" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
     <audio id="sfx-wrong" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
     <audio id="sfx-complete" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
+    <audio id="sfx-gameover" src="https://assets.mixkit.co/active_storage/sfx/2955/2955-preview.mp3"></audio>
 
     <script src="script.js"></script>
 </body>

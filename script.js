@@ -85,16 +85,56 @@ const appData = {
         }
     ],
     quiz: [
-        { q: "___ you like ice cream?", options: ["Do", "Does"], answer: 0 },
-        { q: "___ she have a pet?", options: ["Do", "Does"], answer: 1 },
-        { q: "We ___ not watch movies on weekdays.", options: ["do", "does"], answer: 0 },
-        { q: "___ he play the guitar?", options: ["Do", "Does"], answer: 1 },
-        { q: "They ___ not live in this city.", options: ["do", "does"], answer: 0 },
-        { q: "I ___ not like spinach.", options: ["do", "does"], answer: 0 },
-        { q: "___ it rain often?", options: ["Do", "Does"], answer: 1 },
-        { q: "He ___ not have a bike.", options: ["do", "does"], answer: 1 },
-        { q: "___ they like chocolate?", options: ["Do", "Does"], answer: 0 },
-        { q: "___ you study English?", options: ["Do", "Does"], answer: 0 }
+        { 
+            type: "mcq",
+            q: "___ you like ice cream?", 
+            options: ["Do", "Does"], answer: 0, 
+            explanation: "We use 'Do' with the pronoun 'You'.", 
+            fullSentence: "Do you like ice cream?"
+        },
+        { 
+            type: "mcq",
+            q: "___ she have a pet?", 
+            options: ["Do", "Does"], answer: 1, 
+            explanation: "We use 'Does' with the singular pronoun 'She'.",
+            fullSentence: "Does she have a pet?"
+        },
+        { 
+            type: "mcq",
+            q: "The dog ___ not bark loudly.", 
+            options: ["do", "does"], answer: 1, 
+            explanation: "'The dog' is singular (It), so we use 'Does'.",
+            fullSentence: "The dog does not bark loudly."
+        },
+        { 
+            type: "mcq",
+            q: "My parents ___ not live in this city.", 
+            options: ["do", "does"], answer: 0, 
+            explanation: "'My parents' is plural (They), so we use 'Do'.",
+            fullSentence: "My parents do not live in this city."
+        },
+        {
+            type: "dialog",
+            speakerA: "___ John play the guitar?",
+            speakerB: "No, he ___ not.",
+            options: ["Do / do", "Does / does", "Do / does"], answer: 1,
+            explanation: "John is 'He', so we use 'Does' for both the question and the answer.",
+            fullSentence: "Does John play the guitar? No, he does not."
+        },
+        {
+            type: "build",
+            words: ["Does", "play", "she", "tennis", "?"],
+            correctOrder: ["Does", "she", "play", "tennis", "?"],
+            explanation: "In a question, the structure is: Does + Subject (she) + Verb 1 (play).",
+            fullSentence: "Does she play tennis?"
+        },
+        {
+            type: "build",
+            words: ["not", "We", "do", "watch", "TV", "."],
+            correctOrder: ["We", "do", "not", "watch", "TV", "."],
+            explanation: "In a negative sentence, the structure is: Subject (We) + do + not + Verb 1 (watch).",
+            fullSentence: "We do not watch TV."
+        }
     ]
 };
 
@@ -103,7 +143,9 @@ const app = {
     learnSlideIndex: 0,
     quizIndex: 0,
     score: 0,
+    lives: 3,
     selectedOption: null,
+    buildSelection: [],
 
     // Sounds
     playSfx: function(id) {
@@ -111,6 +153,16 @@ const app = {
         if(audio) {
             audio.currentTime = 0;
             audio.play().catch(e => console.log("Audio play blocked by browser."));
+        }
+    },
+
+    playSentenceAudio: function() {
+        const q = appData.quiz[this.quizIndex];
+        if ('speechSynthesis' in window && q.fullSentence) {
+            const utterance = new SpeechSynthesisUtterance(q.fullSentence);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
         }
     },
 
@@ -180,20 +232,45 @@ const app = {
     startQuiz: function() {
         this.quizIndex = 0;
         this.score = 0;
+        this.lives = 3;
+        
         // Shuffle questions
         appData.quiz.sort(() => Math.random() - 0.5);
+        // If type build, shuffle words
+        appData.quiz.forEach(q => {
+            if(q.type === 'build') {
+                q.shuffledWords = [...q.words].sort(() => Math.random() - 0.5);
+            }
+        });
+
         document.getElementById('quiz-result-overlay').classList.add('hidden');
+        this.updateHeartsUI();
         this.renderQuestion();
         this.showScreen('quiz-screen');
     },
 
+    updateHeartsUI: function() {
+        const container = document.getElementById('hearts-container');
+        container.innerHTML = '';
+        for(let i=0; i<3; i++) {
+            if(i < this.lives) {
+                container.innerHTML += '<i class="fas fa-heart"></i>';
+            } else {
+                container.innerHTML += '<i class="far fa-heart text-gray-300"></i>';
+            }
+        }
+    },
+
     renderQuestion: function() {
         this.selectedOption = null;
+        this.buildSelection = [];
         const q = appData.quiz[this.quizIndex];
         const container = document.getElementById('quiz-container');
         
         // Reset Footer
         document.getElementById('feedback-message').classList.add('hidden');
+        document.getElementById('feedback-message').classList.remove('flex');
+        
         const checkBtn = document.getElementById('btn-check');
         checkBtn.classList.remove('hidden', 'bg-green-500', 'text-white', 'hover:bg-green-600');
         checkBtn.classList.add('bg-gray-300', 'text-gray-500', 'pointer-events-none');
@@ -202,31 +279,99 @@ const app = {
         // Render progress
         const progress = (this.quizIndex / appData.quiz.length) * 100;
         document.getElementById('quiz-progress').style.width = `${progress}%`;
-        document.getElementById('quiz-counter').innerText = `${this.quizIndex + 1}/${appData.quiz.length}`;
+        
+        let contentHtml = '';
 
-        let optionsHtml = '';
-        q.options.forEach((opt, idx) => {
-            optionsHtml += `
-                <div class="option-card bg-white border-2 border-gray-200 rounded-2xl p-4 text-center cursor-pointer transition transform hover:scale-[1.02] active:scale-95 shadow-sm"
-                     onclick="app.selectOption(${idx})">
-                    <span class="text-xl font-bold text-gray-700">${opt}</span>
+        if (q.type === 'mcq') {
+            let optionsHtml = '';
+            q.options.forEach((opt, idx) => {
+                optionsHtml += `
+                    <div class="option-card bg-white border-2 border-gray-200 rounded-2xl p-4 text-center cursor-pointer transition transform hover:scale-[1.02] active:scale-95 shadow-sm"
+                         onclick="app.selectOption(${idx})">
+                        <span class="text-xl font-bold text-gray-700">${opt}</span>
+                    </div>
+                `;
+            });
+
+            contentHtml = `
+                <div class="flex-1 flex flex-col slide-in">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-extrabold text-gray-800 leading-tight">Fill in the blank:</h2>
+                    </div>
+                    <div class="bg-blue-50 p-6 rounded-3xl mb-8 border border-blue-100 shadow-inner">
+                        <p class="text-2xl font-medium text-center text-blue-900">${q.q.replace('___', '<span class="inline-block w-16 border-b-4 border-blue-400"></span>')}</p>
+                    </div>
+                    <div class="space-y-4">
+                        ${optionsHtml}
+                    </div>
                 </div>
             `;
-        });
+        } 
+        else if (q.type === 'dialog') {
+            let optionsHtml = '';
+            q.options.forEach((opt, idx) => {
+                optionsHtml += `
+                    <div class="option-card bg-white border-2 border-gray-200 rounded-2xl p-4 text-center cursor-pointer transition transform hover:scale-[1.02] active:scale-95 shadow-sm"
+                         onclick="app.selectOption(${idx})">
+                        <span class="text-xl font-bold text-gray-700">${opt}</span>
+                    </div>
+                `;
+            });
 
-        container.innerHTML = `
-            <div class="flex-1 flex flex-col slide-in">
-                <div class="mb-8">
-                    <h2 class="text-3xl font-extrabold text-gray-800 leading-tight">Complete the sentence:</h2>
+            contentHtml = `
+                <div class="flex-1 flex flex-col slide-in">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-extrabold text-gray-800 leading-tight">Complete the conversation:</h2>
+                    </div>
+                    <div class="space-y-4 mb-8">
+                        <div class="flex gap-3 items-end">
+                            <div class="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center font-bold text-blue-700 text-xs shrink-0">A</div>
+                            <div class="bg-blue-100 p-4 rounded-2xl rounded-bl-none border border-blue-200 text-lg font-medium text-blue-900">
+                                ${q.speakerA.replace('___', '<span class="inline-block w-12 border-b-2 border-blue-500"></span>')}
+                            </div>
+                        </div>
+                        <div class="flex gap-3 items-end flex-row-reverse">
+                            <div class="w-8 h-8 rounded-full bg-pink-200 flex items-center justify-center font-bold text-pink-700 text-xs shrink-0">B</div>
+                            <div class="bg-pink-100 p-4 rounded-2xl rounded-br-none border border-pink-200 text-lg font-medium text-pink-900">
+                                ${q.speakerB.replace('___', '<span class="inline-block w-12 border-b-2 border-pink-500"></span>')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        ${optionsHtml}
+                    </div>
                 </div>
-                <div class="bg-blue-50 p-6 rounded-3xl mb-8 border border-blue-100 shadow-inner">
-                    <p class="text-2xl font-medium text-center text-blue-900">${q.q.replace('___', '<span class="inline-block w-16 border-b-4 border-blue-400"></span>')}</p>
+            `;
+        }
+        else if (q.type === 'build') {
+            let chipsHtml = '';
+            q.shuffledWords.forEach((word, idx) => {
+                chipsHtml += `
+                    <div id="chip-${idx}" class="word-chip bg-white border-2 border-gray-300 rounded-xl px-4 py-2 text-lg font-bold text-gray-700 shadow-sm"
+                         onclick="app.toggleBuildWord(${idx}, '${word.replace(/'/g, "\\'")}')">
+                        ${word}
+                    </div>
+                `;
+            });
+
+            contentHtml = `
+                <div class="flex-1 flex flex-col slide-in">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-extrabold text-gray-800 leading-tight">Form the correct sentence:</h2>
+                    </div>
+                    <!-- Drop zone -->
+                    <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-2xl min-h-[100px] p-4 flex flex-wrap gap-2 items-start content-start mb-8 shadow-inner" id="build-zone">
+                        <!-- Selected words go here -->
+                    </div>
+                    <!-- Word Bank -->
+                    <div class="flex flex-wrap gap-3 justify-center" id="word-bank">
+                        ${chipsHtml}
+                    </div>
                 </div>
-                <div class="space-y-4">
-                    ${optionsHtml}
-                </div>
-            </div>
-        `;
+            `;
+        }
+
+        container.innerHTML = contentHtml;
     },
 
     selectOption: function(idx) {
@@ -250,37 +395,99 @@ const app = {
         checkBtn.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'cursor-pointer');
     },
 
-    checkAnswer: function() {
-        if (this.selectedOption === null) return;
+    toggleBuildWord: function(idx, word) {
+        const chip = document.getElementById(`chip-${idx}`);
+        const zone = document.getElementById('build-zone');
         
-        const q = appData.quiz[this.quizIndex];
-        const isCorrect = this.selectedOption === q.answer;
-        
-        const cards = document.querySelectorAll('.option-card');
-        // Disable clicks
-        cards.forEach(card => card.style.pointerEvents = 'none');
+        if (chip.classList.contains('selected')) {
+            // Remove from selection
+            chip.classList.remove('selected');
+            this.buildSelection = this.buildSelection.filter(item => item.idx !== idx);
+            // Re-render zone
+            zone.innerHTML = '';
+            this.buildSelection.forEach(item => {
+                zone.innerHTML += `
+                    <div class="bg-blue-500 text-white rounded-xl px-4 py-2 text-lg font-bold shadow-sm cursor-pointer hover:bg-blue-600 transition" onclick="app.toggleBuildWord(${item.idx}, '${item.word.replace(/'/g, "\\'")}')">
+                        ${item.word}
+                    </div>
+                `;
+            });
+        } else {
+            // Add to selection
+            chip.classList.add('selected');
+            this.buildSelection.push({idx, word});
+            zone.innerHTML += `
+                <div class="bg-blue-500 text-white rounded-xl px-4 py-2 text-lg font-bold shadow-sm cursor-pointer hover:bg-blue-600 transition slide-in" onclick="app.toggleBuildWord(${idx}, '${word.replace(/'/g, "\\'")}')">
+                    ${word}
+                </div>
+            `;
+        }
 
+        // Enable check button if all words are selected
+        const q = appData.quiz[this.quizIndex];
+        const checkBtn = document.getElementById('btn-check');
+        if (this.buildSelection.length === q.words.length) {
+            checkBtn.classList.remove('bg-gray-300', 'text-gray-500', 'pointer-events-none');
+            checkBtn.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'cursor-pointer');
+        } else {
+            checkBtn.classList.add('bg-gray-300', 'text-gray-500', 'pointer-events-none');
+            checkBtn.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'cursor-pointer');
+        }
+    },
+
+    checkAnswer: function() {
+        const q = appData.quiz[this.quizIndex];
+        let isCorrect = false;
+
+        if (q.type === 'mcq' || q.type === 'dialog') {
+            if (this.selectedOption === null) return;
+            isCorrect = this.selectedOption === q.answer;
+            // Disable clicks
+            document.querySelectorAll('.option-card').forEach(card => card.style.pointerEvents = 'none');
+        } 
+        else if (q.type === 'build') {
+            if (this.buildSelection.length !== q.words.length) return;
+            // Compare order
+            const userOrder = this.buildSelection.map(i => i.word).join(' ');
+            const correctOrder = q.correctOrder.join(' ');
+            isCorrect = userOrder === correctOrder;
+            // Disable clicks
+            document.querySelectorAll('.word-chip').forEach(card => card.style.pointerEvents = 'none');
+            document.getElementById('build-zone').style.pointerEvents = 'none';
+        }
+        
         const feedbackMsg = document.getElementById('feedback-message');
         const feedbackIcon = document.getElementById('feedback-icon');
         const feedbackText = document.getElementById('feedback-text');
+        const feedbackExp = document.getElementById('feedback-explanation');
         
         document.getElementById('btn-check').classList.add('hidden');
         const nextBtn = document.getElementById('btn-next-quiz');
         nextBtn.classList.remove('hidden');
 
-        feedbackMsg.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
-        feedbackIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white';
+        // Show feedback container
+        feedbackMsg.classList.remove('hidden');
+        feedbackMsg.classList.add('flex');
+        feedbackMsg.classList.remove('bg-green-100', 'text-green-900', 'bg-red-100', 'text-red-900');
+        feedbackIcon.className = 'w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xl text-white';
+        feedbackExp.innerText = q.explanation || "";
 
         if (isCorrect) {
             this.score++;
             this.playSfx('sfx-correct');
-            // Highlight correct option
-            cards[this.selectedOption].classList.replace('border-blue-500', 'border-green-500');
-            cards[this.selectedOption].classList.replace('bg-blue-50', 'bg-green-100');
-            cards[this.selectedOption].classList.replace('ring-blue-100', 'ring-green-100');
+            
+            if(q.type === 'mcq' || q.type === 'dialog') {
+                const cards = document.querySelectorAll('.option-card');
+                cards[this.selectedOption].classList.replace('border-blue-500', 'border-green-500');
+                cards[this.selectedOption].classList.replace('bg-blue-50', 'bg-green-100');
+                cards[this.selectedOption].classList.replace('ring-blue-100', 'ring-green-100');
+            } else if (q.type === 'build') {
+                document.getElementById('build-zone').classList.replace('bg-gray-100', 'bg-green-50');
+                document.getElementById('build-zone').classList.replace('border-gray-300', 'border-green-300');
+            }
             
             // Show feedback
-            feedbackMsg.classList.add('bg-green-100', 'text-green-800');
+            feedbackMsg.classList.add('bg-green-100', 'text-green-900');
             feedbackIcon.classList.add('bg-green-500');
             feedbackIcon.innerHTML = '<i class="fas fa-check"></i>';
             feedbackText.innerText = "Excellent!";
@@ -288,26 +495,40 @@ const app = {
             nextBtn.className = "w-full text-white font-bold py-4 px-6 rounded-2xl text-xl shadow-lg transition transform active:scale-95 bg-green-500 hover:bg-green-600";
         } else {
             this.playSfx('sfx-wrong');
-            // Highlight wrong option
-            cards[this.selectedOption].classList.replace('border-blue-500', 'border-red-500');
-            cards[this.selectedOption].classList.replace('bg-blue-50', 'bg-red-50');
-            cards[this.selectedOption].classList.replace('ring-blue-100', 'ring-red-100');
-            
-            // Show correct answer
-            cards[q.answer].classList.remove('border-gray-200');
-            cards[q.answer].classList.add('border-green-500', 'bg-green-100');
+            this.lives--;
+            this.updateHeartsUI();
+
+            if(q.type === 'mcq' || q.type === 'dialog') {
+                const cards = document.querySelectorAll('.option-card');
+                cards[this.selectedOption].classList.replace('border-blue-500', 'border-red-500');
+                cards[this.selectedOption].classList.replace('bg-blue-50', 'bg-red-50');
+                cards[this.selectedOption].classList.replace('ring-blue-100', 'ring-red-100');
+                // Show correct answer
+                cards[q.answer].classList.remove('border-gray-200', 'bg-white');
+                cards[q.answer].classList.add('border-green-500', 'bg-green-100');
+            } else if (q.type === 'build') {
+                document.getElementById('build-zone').classList.replace('bg-gray-100', 'bg-red-50');
+                document.getElementById('build-zone').classList.replace('border-gray-300', 'border-red-300');
+                // Make the zone visually shake
+                document.getElementById('build-zone').classList.add('shake');
+            }
 
             // Show feedback
-            feedbackMsg.classList.add('bg-red-100', 'text-red-800');
+            feedbackMsg.classList.add('bg-red-100', 'text-red-900');
             feedbackIcon.classList.add('bg-red-500');
             feedbackIcon.innerHTML = '<i class="fas fa-times"></i>';
-            feedbackText.innerText = "Correct answer: " + q.options[q.answer];
+            feedbackText.innerText = "Not quite right!";
 
             nextBtn.className = "w-full text-white font-bold py-4 px-6 rounded-2xl text-xl shadow-lg transition transform active:scale-95 bg-red-500 hover:bg-red-600";
         }
     },
 
     nextQuestion: function() {
+        if (this.lives <= 0) {
+            this.showGameOver();
+            return;
+        }
+
         this.quizIndex++;
         if (this.quizIndex < appData.quiz.length) {
             this.renderQuestion();
@@ -316,13 +537,26 @@ const app = {
         }
     },
 
-    showResult: function() {
-        this.playSfx('sfx-complete');
-        document.getElementById('quiz-progress').style.width = '100%';
-        document.getElementById('final-score').innerText = this.score;
+    showGameOver: function() {
+        this.playSfx('sfx-gameover');
         
         const overlay = document.getElementById('quiz-result-overlay');
         overlay.classList.remove('hidden');
+        
+        document.getElementById('result-icon').innerText = "💔";
+        document.getElementById('result-title').innerText = "Game Over!";
+        document.getElementById('result-subtitle').innerHTML = "You ran out of hearts. Try again!";
+    },
+
+    showResult: function() {
+        this.playSfx('sfx-complete');
+        document.getElementById('quiz-progress').style.width = '100%';
+        
+        const overlay = document.getElementById('quiz-result-overlay');
+        overlay.classList.remove('hidden');
+        
+        document.getElementById('result-title').innerText = "Quiz Complete!";
+        document.getElementById('result-subtitle').innerHTML = `You scored <span id="final-score" class="font-bold text-green-500 text-2xl">${this.score}</span> out of ${appData.quiz.length}.`;
         
         const icon = document.getElementById('result-icon');
         if(this.score === appData.quiz.length) {
