@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-white/85 dark:bg-slate-900/85 border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
       <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {onBack ? (
             <button
               onClick={onBack}
@@ -41,12 +41,12 @@ export const Header: React.FC<HeaderProps> = ({
               D
             </div>
           )}
-          <h1 className="font-heading font-bold text-lg md:text-xl text-slate-800 dark:text-slate-100 truncate">
+          <h1 className="min-w-0 truncate font-heading font-bold text-lg md:text-xl text-slate-800 dark:text-slate-100">
             {title}
           </h1>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {rightBadge}
 
           <button

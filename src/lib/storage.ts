@@ -81,23 +81,26 @@ export function resetAllProgress(): UserProgress {
 }
 
 export function getStoredTheme(): 'light' | 'dark' {
+  const prefersDark = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-color-scheme: dark)').matches
+    : false;
+
   try {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'dark' || saved === 'light') return saved;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return prefersDark ? 'dark' : 'light';
   } catch {
-    return 'dark';
+    return prefersDark ? 'dark' : 'light';
   }
 }
 
 export function setStoredTheme(theme: 'light' | 'dark'): void {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }
+
   try {
     localStorage.setItem(THEME_KEY, theme);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
   } catch {
     // Ignore
   }
