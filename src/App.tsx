@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
@@ -6,11 +6,13 @@ import { LearnView } from './components/LearnView';
 import { QuizView } from './components/QuizView';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
+import { ConfirmationDialog } from './components/ConfirmationDialog';
 import { LESSONS } from './data/lessons';
 import { QUIZ_QUESTIONS } from './data/quizQuestions';
-import type { LessonModule, QuizQuestion, QuizResultRecord, UserProgress } from './types';
+import type { LessonModule, QuizMode, QuizQuestion, QuizResultRecord, UserProgress } from './types';
 import { loadProgress, saveProgress, resetAllProgress, getStoredTheme, setStoredTheme } from './lib/storage';
 import { sound } from './lib/sound';
+import { getPercentage, getQuizScore, selectQuestionsForMode } from './lib/quiz';
 
 type Screen = 'home' | 'learn' | 'quiz' | 'result';
 
@@ -19,19 +21,23 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [resetFocusTarget, setResetFocusTarget] = useState<HTMLElement | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
   const [progress, setProgress] = useState<UserProgress>({
     completedModules: [],
     stars: 0,
     quizzesTaken: 0,
-    bestScore: 0,
+    bestPercentage: 0,
     soundEnabled: true,
   });
 
   const [selectedModule, setSelectedModule] = useState<LessonModule>(LESSONS[0]);
   const [activeQuestions, setActiveQuestions] = useState<QuizQuestion[]>([]);
+  const [activeQuizMode, setActiveQuizMode] = useState<QuizMode>('quick');
   const [quizResults, setQuizResults] = useState<QuizResultRecord[]>([]);
-  const [finalScore, setFinalScore] = useState(0);
 
   // Initialize progress and theme on mount
   useEffect(() => {
@@ -71,7 +77,7 @@ export const App: React.FC = () => {
 
   const handleFinishLesson = () => {
     const modId = selectedModule.id;
-    let newCompleted = [...progress.completedModules];
+    const newCompleted = [...progress.completedModules];
     let newStars = progress.stars;
 
     if (!newCompleted.includes(modId)) {
@@ -90,39 +96,22 @@ export const App: React.FC = () => {
     setScreen('home');
   };
 
-  const handleStartQuiz = (mode: 'quick' | 'level1' | 'level2' | 'level3') => {
-    let pool: QuizQuestion[] = [];
-
-    if (mode === 'level1') {
-      pool = QUIZ_QUESTIONS.filter((q) => q.level === 1);
-    } else if (mode === 'level2') {
-      pool = QUIZ_QUESTIONS.filter((q) => q.level === 2);
-    } else if (mode === 'level3') {
-      pool = QUIZ_QUESTIONS.filter((q) => q.level === 3);
-    } else {
-      // Quick mix: 10 random questions from all levels
-      const shuffled = [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5);
-      pool = shuffled.slice(0, 10);
-    }
-
-    // Shuffle order of questions for freshness
-    const shuffledPool = [...pool].sort(() => Math.random() - 0.5);
-
-    setActiveQuestions(shuffledPool);
+  const handleStartQuiz = (mode: QuizMode) => {
+    setActiveQuizMode(mode);
+    setActiveQuestions(selectQuestionsForMode(mode, QUIZ_QUESTIONS));
     setQuizResults([]);
-    setFinalScore(0);
     setScreen('quiz');
     sound.playPop();
   };
 
-  const handleFinishQuiz = (results: QuizResultRecord[], score: number) => {
+  const handleFinishQuiz = (results: QuizResultRecord[]) => {
+    const score = getQuizScore(results);
     setQuizResults(results);
-    setFinalScore(score);
 
     const updated: UserProgress = {
       ...progress,
       quizzesTaken: progress.quizzesTaken + 1,
-      bestScore: Math.max(progress.bestScore, score),
+      bestPercentage: Math.max(progress.bestPercentage, getPercentage(score, activeQuestions.length)),
       stars: progress.stars + score,
     };
 
@@ -134,7 +123,40 @@ export const App: React.FC = () => {
   const handleResetData = () => {
     const fresh = resetAllProgress();
     setProgress(fresh);
+    setSoundEnabled(fresh.soundEnabled);
+    sound.enabled = fresh.soundEnabled;
     sound.playPop();
+  };
+
+  const handleRequestQuizExit = () => setIsExitConfirmOpen(true);
+
+  const handleBack = () => {
+    if (screen === 'quiz') {
+      handleRequestQuizExit();
+      return;
+    }
+    setScreen('home');
+  };
+
+  const handleRequestReset = () => {
+    const activeElement = document.activeElement;
+    setResetFocusTarget(isSettingsOpen
+      ? settingsButtonRef.current
+      : activeElement instanceof HTMLElement ? activeElement : null);
+    setIsSettingsOpen(false);
+    setIsResetConfirmOpen(true);
+  };
+
+  const handleConfirmQuizExit = () => {
+    setIsExitConfirmOpen(false);
+    setQuizResults([]);
+    setActiveQuestions([]);
+    setScreen('home');
+  };
+
+  const handleConfirmReset = () => {
+    handleResetData();
+    setIsResetConfirmOpen(false);
   };
 
   // Header dynamic titles
@@ -156,12 +178,13 @@ export const App: React.FC = () => {
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <Header
           title={getHeaderTitle()}
-          onBack={screen !== 'home' ? () => setScreen('home') : undefined}
+          onBack={screen !== 'home' ? handleBack : undefined}
           soundEnabled={soundEnabled}
           onToggleSound={handleToggleSound}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          settingsButtonRef={settingsButtonRef}
         />
 
         <main className="flex-1 w-full">
@@ -170,7 +193,7 @@ export const App: React.FC = () => {
               progress={progress}
               onSelectLesson={handleSelectLesson}
               onStartQuiz={handleStartQuiz}
-              onResetData={handleResetData}
+              onRequestReset={handleRequestReset}
             />
           )}
 
@@ -184,17 +207,17 @@ export const App: React.FC = () => {
           {screen === 'quiz' && (
             <QuizView
               questions={activeQuestions}
+              keyboardPaused={isSettingsOpen || isExitConfirmOpen || isResetConfirmOpen}
               onFinishQuiz={handleFinishQuiz}
-              onQuitQuiz={() => setScreen('home')}
+              onRequestQuit={handleRequestQuizExit}
             />
           )}
 
           {screen === 'result' && (
             <ResultView
               results={quizResults}
-              finalScore={finalScore}
               totalQuestions={activeQuestions.length}
-              onPlayAgain={() => handleStartQuiz('quick')}
+              onPlayAgain={() => handleStartQuiz(activeQuizMode)}
               onGoHome={() => setScreen('home')}
             />
           )}
@@ -207,7 +230,29 @@ export const App: React.FC = () => {
           onToggleTheme={handleToggleTheme}
           soundEnabled={soundEnabled}
           onToggleSound={handleToggleSound}
-          onResetData={handleResetData}
+          onRequestReset={handleRequestReset}
+          restoreFocusTo={settingsButtonRef.current}
+        />
+        <ConfirmationDialog
+          isOpen={isExitConfirmOpen}
+          titleId="quiz-exit-title"
+          title="Keluar dari Kuis?"
+          description="Skor dan progres kuis saat ini akan dibatalkan."
+          cancelText="Lanjut Kuis"
+          confirmText="Ya, Keluar"
+          onCancel={() => setIsExitConfirmOpen(false)}
+          onConfirm={handleConfirmQuizExit}
+        />
+        <ConfirmationDialog
+          isOpen={isResetConfirmOpen}
+          titleId="progress-reset-title"
+          title="Reset Progres Belajar?"
+          description="Semua bintang, akurasi terbaik, dan modul tuntas akan dihapus."
+          cancelText="Batalkan"
+          confirmText="Ya, Reset Data"
+          onCancel={() => setIsResetConfirmOpen(false)}
+          onConfirm={handleConfirmReset}
+          restoreFocusTo={resetFocusTarget}
         />
       </div>
     </MotionConfig>

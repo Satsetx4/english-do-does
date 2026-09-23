@@ -1,21 +1,35 @@
-export type QuestionType = 'mcq' | 'dialog' | 'build';
+export type QuizMode = 'quick' | 'level1' | 'level2' | 'level3';
 
-export interface QuizQuestion {
+interface QuizQuestionBase {
   id: string;
-  type: QuestionType;
   level: 1 | 2 | 3;
   prompt: string;
-  subjectHint?: string;
-  options?: string[];
-  correctAnswer?: number;
-  speakerA?: string;
-  speakerB?: string;
-  words?: string[];
-  correctOrder?: string[];
   fullSentence: string;
   explanationEn: string;
   explanationId: string;
 }
+
+export interface MCQQuestion extends QuizQuestionBase {
+  type: 'mcq';
+  options: string[];
+  correctAnswer: number;
+}
+
+export interface DialogQuestion extends QuizQuestionBase {
+  type: 'dialog';
+  speakerA: string;
+  speakerB: string;
+  options: string[];
+  correctAnswer: number;
+}
+
+export interface BuildQuestion extends QuizQuestionBase {
+  type: 'build';
+  words: string[];
+  correctOrder: string[];
+}
+
+export type QuizQuestion = MCQQuestion | DialogQuestion | BuildQuestion;
 
 export interface LessonSlide {
   title: string;
@@ -60,6 +74,6 @@ export interface UserProgress {
   completedModules: string[];
   stars: number;
   quizzesTaken: number;
-  bestScore: number;
+  bestPercentage: number;
   soundEnabled: boolean;
 }

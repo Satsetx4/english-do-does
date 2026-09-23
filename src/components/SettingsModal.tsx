@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import { X, Sun, Moon, Volume2, VolumeX, RotateCcw } from 'lucide-react';
-import { popVariants } from '../lib/motion';
+import { AccessibleDialog } from './AccessibleDialog';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,7 +9,8 @@ interface SettingsModalProps {
   onToggleTheme: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
-  onResetData: () => void;
+  onRequestReset: () => void;
+  restoreFocusTo?: HTMLElement | null;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -20,34 +20,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleTheme,
   soundEnabled,
   onToggleSound,
-  onResetData,
+  onRequestReset,
+  restoreFocusTo,
 }) => {
-  const [confirmReset, setConfirmReset] = useState(false);
-
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
-        onClick={onClose}
-      >
-        <motion.div
-          variants={popVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6"
-        >
+    <AccessibleDialog
+      isOpen={isOpen}
+      titleId="settings-dialog-title"
+      onClose={onClose}
+      restoreFocusTo={restoreFocusTo}
+      panelClassName="w-full max-w-md p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6"
+    >
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 className="font-heading font-extrabold text-xl text-slate-900 dark:text-slate-50">
+            <h2 id="settings-dialog-title" className="font-heading font-extrabold text-xl text-slate-900 dark:text-slate-50">
               Pengaturan Aplikasi
-            </h3>
+            </h2>
             <button
+              type="button"
               onClick={onClose}
               aria-label="Tutup"
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition tactile-press"
+              className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
             >
               <X className="w-5 h-5" />
             </button>
@@ -71,6 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <button
+                type="button"
                 onClick={onToggleTheme}
                 className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 font-heading font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition tactile-press"
               >
@@ -95,6 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <button
+                type="button"
                 onClick={onToggleSound}
                 className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 font-heading font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition tactile-press"
               >
@@ -119,47 +113,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
-                {!confirmReset ? (
-                  <button
-                    onClick={() => setConfirmReset(true)}
-                    className="px-3.5 py-1.5 rounded-xl bg-rose-500 text-white font-heading font-semibold text-xs hover:bg-rose-600 transition tactile-press shadow-xs"
-                  >
-                    Reset Data
-                  </button>
-                ) : (
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => {
-                        onResetData();
-                        setConfirmReset(false);
-                        onClose();
-                      }}
-                      className="px-3 py-1 rounded-xl bg-rose-600 text-white font-heading font-bold text-xs hover:bg-rose-700 transition"
-                    >
-                      Yakin
-                    </button>
-                    <button
-                      onClick={() => setConfirmReset(false)}
-                      className="px-2.5 py-1 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={onRequestReset}
+                  className="px-3.5 py-2.5 rounded-xl bg-rose-500 text-white font-heading font-semibold text-xs hover:bg-rose-600 transition tactile-press shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+                >
+                  Reset Data
+                </button>
               </div>
             </div>
           </div>
 
           <div className="pt-2">
             <button
+              type="button"
               onClick={onClose}
               className="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 font-heading font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition tactile-press"
             >
               Tutup Pengaturan
             </button>
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </AccessibleDialog>
   );
 };

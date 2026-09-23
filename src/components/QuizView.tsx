@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Heart, 
@@ -6,22 +6,24 @@ import {
   Check, 
   X, 
   ArrowRight, 
-  AlertCircle
 } from 'lucide-react';
 import type { QuizQuestion, QuizResultRecord } from '../types';
 import { sound } from '../lib/sound';
 import { popVariants, fadeInUpVariants, cardHover, cardTap } from '../lib/motion';
+import { shuffle } from '../lib/quiz';
 
 interface QuizViewProps {
   questions: QuizQuestion[];
-  onFinishQuiz: (results: QuizResultRecord[], finalScore: number) => void;
-  onQuitQuiz: () => void;
+  keyboardPaused: boolean;
+  onFinishQuiz: (results: QuizResultRecord[]) => void;
+  onRequestQuit: () => void;
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({
   questions,
+  keyboardPaused,
   onFinishQuiz,
-  onQuitQuiz,
+  onRequestQuit,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -30,9 +32,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const [isChecked, setIsChecked] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [lives, setLives] = useState(3);
-  const [score, setScore] = useState(0);
   const [results, setResults] = useState<QuizResultRecord[]>([]);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const keyboardActionsRef = useRef({
+    selectOption: (_index: number) => {},
+    checkAnswer: () => {},
+    nextQuestion: () => {},
+  });
 
   const currentQ = questions[currentIndex];
 
@@ -44,42 +49,40 @@ export const QuizView: React.FC<QuizViewProps> = ({
     setIsCorrect(null);
 
     if (currentQ?.type === 'build' && currentQ.words) {
-      const copy = [...currentQ.words];
-      for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = copy[i];
-        copy[i] = copy[j];
-        copy[j] = temp;
-      }
-      setShuffledBank(copy);
+      setShuffledBank(shuffle(currentQ.words));
     }
   }, [currentIndex, currentQ]);
 
   // Keyboard shortcut listener (1-4 for options, Enter for Check / Continue)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showExitConfirm) return;
+      if (keyboardPaused || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (!currentQ) return;
 
       if (!isChecked) {
         if (currentQ.type === 'mcq' || currentQ.type === 'dialog') {
           const num = parseInt(e.key, 10);
           if (num >= 1 && currentQ.options && num <= currentQ.options.length) {
-            handleSelectOption(num - 1);
+            e.preventDefault();
+            keyboardActionsRef.current.selectOption(num - 1);
           }
         }
-        if (e.key === 'Enter') {
-          handleCheckAnswer();
+        if (e.key === 'Enter' && !(e.target instanceof HTMLElement && e.target.closest('button, a'))) {
+          e.preventDefault();
+          keyboardActionsRef.current.checkAnswer();
         }
       } else {
-        if (e.key === 'Enter') {
-          handleNextQuestion();
+        if (e.key === 'Enter' && !(e.target instanceof HTMLElement && e.target.closest('button, a'))) {
+          e.preventDefault();
+          keyboardActionsRef.current.nextQuestion();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isChecked, selectedOption, buildWords, showExitConfirm, currentQ]);
+  }, [isChecked, selectedOption, buildWords, keyboardPaused, currentQ]);
 
   if (!currentQ) return null;
 
@@ -137,7 +140,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
     if (correct) {
       sound.playCorrect();
-      setScore((s) => s + 1);
     } else {
       sound.playWrong();
       setLives((l) => Math.max(0, l - 1));
@@ -146,10 +148,10 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
   const handleNextQuestion = () => {
     sound.playPop();
-    if (lives <= 1 && isCorrect === false) {
+    if (lives === 0 && isCorrect === false) {
       // Game over by losing all lives
       sound.playGameOver();
-      onFinishQuiz(results, score);
+      onFinishQuiz(results);
       return;
     }
 
@@ -157,20 +159,27 @@ export const QuizView: React.FC<QuizViewProps> = ({
       setCurrentIndex((prev) => prev + 1);
     } else {
       sound.playCheer();
-      onFinishQuiz(results, score + (isCorrect ? 1 : 0));
+      onFinishQuiz(results);
     }
+  };
+
+  keyboardActionsRef.current = {
+    selectOption: handleSelectOption,
+    checkAnswer: handleCheckAnswer,
+    nextQuestion: handleNextQuestion,
   };
 
   const progressPercent = ((currentIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-4 space-y-5 pb-28">
+    <div className="max-w-2xl mx-auto px-4 py-4 space-y-5 pb-6">
       {/* Top Bar: Quit Button, Progress Bar, Lives */}
       <div className="flex items-center justify-between gap-3">
         <button
-          onClick={() => setShowExitConfirm(true)}
+          type="button"
+          onClick={onRequestQuit}
           aria-label="Keluar Kuis"
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 tactile-press"
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition active:scale-95 tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
         >
           <X className="w-5 h-5" />
         </button>
@@ -180,8 +189,17 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <span>Soal {currentIndex + 1}/{questions.length}</span>
             <span>Level {currentQ.level}</span>
           </div>
-          <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+          <div
+            role="progressbar"
+            aria-label="Progres kuis"
+            aria-valuemin={0}
+            aria-valuemax={questions.length}
+            aria-valuenow={currentIndex + 1}
+            aria-valuetext={`Soal ${currentIndex + 1} dari ${questions.length}`}
+            className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"
+          >
             <motion.div
+              aria-hidden="true"
               className="h-full bg-emerald-500 rounded-full"
               initial={{ width: '0%' }}
               animate={{ width: `${progressPercent}%` }}
@@ -191,10 +209,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
         </div>
 
         {/* Hearts Container */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" role="img" aria-label={`Sisa nyawa: ${lives} dari 3`}>
           {[1, 2, 3].map((heartIndex) => (
             <Heart
               key={heartIndex}
+              aria-hidden="true"
               className={`w-6 h-6 transition-all duration-300 ${
                 heartIndex <= lives
                   ? 'text-rose-500 fill-rose-500 scale-100'
@@ -248,10 +267,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
                 return (
                   <motion.button
+                    type="button"
                     key={idx}
                     whileHover={!isChecked ? cardHover : undefined}
                     whileTap={!isChecked ? cardTap : undefined}
                     onClick={() => handleSelectOption(idx)}
+                    aria-pressed={isSelected}
                     disabled={isChecked}
                     className={`w-full p-4 rounded-2xl border-2 text-left font-semibold text-base sm:text-lg flex items-center justify-between transition-all tactile-press ${cardStyle}`}
                   >
@@ -323,10 +344,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
                   return (
                     <motion.button
+                      type="button"
                       key={idx}
                       whileHover={!isChecked ? cardHover : undefined}
                       whileTap={!isChecked ? cardTap : undefined}
                       onClick={() => handleSelectOption(idx)}
+                      aria-pressed={isSelected}
                       disabled={isChecked}
                       className={`w-full p-3.5 rounded-2xl border-2 text-left font-semibold text-base flex items-center justify-between transition-all tactile-press ${cardStyle}`}
                     >
@@ -366,13 +389,15 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 ) : (
                   buildWords.map((word, bIdx) => (
                     <motion.button
+                      type="button"
                       key={bIdx}
                       variants={popVariants}
                       initial="hidden"
                       animate="visible"
                       onClick={() => handleRemoveWord(word, bIdx)}
                       disabled={isChecked}
-                      className="px-3.5 py-2 rounded-xl bg-indigo-600 text-white font-heading font-bold text-sm sm:text-base shadow-sm hover:bg-indigo-700 active:scale-95 transition tactile-press"
+                      aria-label={`Hapus kata ${word}`}
+                      className="min-h-11 px-3.5 py-2 rounded-xl bg-indigo-600 text-white font-heading font-bold text-sm sm:text-base shadow-sm hover:bg-indigo-700 active:scale-95 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
                       title="Klik untuk menghapus kata ini"
                     >
                       {word}
@@ -385,12 +410,14 @@ export const QuizView: React.FC<QuizViewProps> = ({
               <div className="flex flex-wrap gap-2.5 justify-center pt-2">
                 {shuffledBank.map((word, sIdx) => (
                   <motion.button
+                    type="button"
                     key={sIdx}
                     whileHover={!isChecked ? cardHover : undefined}
                     whileTap={!isChecked ? cardTap : undefined}
                     onClick={() => handleAddWord(word, sIdx)}
                     disabled={isChecked}
-                    className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 font-heading font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200 shadow-sm hover:border-indigo-400 active:scale-95 transition tactile-press"
+                    aria-label={`Tambahkan kata ${word}`}
+                    className="min-h-11 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 font-heading font-bold text-sm sm:text-base text-slate-800 dark:text-slate-200 shadow-sm hover:border-indigo-400 active:scale-95 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
                   >
                     {word}
                   </motion.button>
@@ -401,13 +428,16 @@ export const QuizView: React.FC<QuizViewProps> = ({
         </motion.div>
       </AnimatePresence>
 
-      {/* Fixed Bottom Action & Feedback Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-4 transition-all">
+      {/* Keep feedback and quiz actions in normal flow so they cannot cover the question. */}
+      <div className="-mx-4 mt-4 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] transition-all">
         <div className="max-w-2xl mx-auto space-y-3">
           {/* Feedback Sheet when Checked */}
           <AnimatePresence>
             {isChecked && (
               <motion.div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -439,6 +469,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => sound.speak(currentQ.fullSentence)}
                   aria-label="Dengarkan pengucapan kalimat benar"
                   className="w-9 h-9 rounded-xl bg-white/70 dark:bg-slate-800/70 text-slate-800 dark:text-slate-100 flex items-center justify-center shrink-0 hover:scale-110 active:scale-95 transition tactile-press shadow-sm"
@@ -453,6 +484,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
           {/* Action Button: Check vs Continue */}
           {!isChecked ? (
             <motion.button
+              type="button"
               whileTap={canCheck ? cardTap : undefined}
               onClick={handleCheckAnswer}
               disabled={!canCheck}
@@ -466,6 +498,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
             </motion.button>
           ) : (
             <motion.button
+              type="button"
               whileTap={cardTap}
               onClick={handleNextQuestion}
               className={`w-full py-4 rounded-2xl font-heading font-bold text-base sm:text-lg text-white shadow-md transition tactile-press flex items-center justify-center gap-2 ${
@@ -481,44 +514,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
         </div>
       </div>
 
-      {/* Confirmation Modal to Quit */}
-      <AnimatePresence>
-        {showExitConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-            <motion.div
-              variants={popVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="w-full max-w-sm p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl text-center space-y-4"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <h3 className="font-heading font-extrabold text-xl text-slate-900 dark:text-slate-50">
-                Keluar dari Kuis?
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                Skor dan progres kuis saat ini akan dibatalkan jika kamu kembali ke menu utama.
-              </p>
-              <div className="flex gap-2.5 pt-2">
-                <button
-                  onClick={() => setShowExitConfirm(false)}
-                  className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-heading font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition tactile-press"
-                >
-                  Lanjut Kuis
-                </button>
-                <button
-                  onClick={onQuitQuiz}
-                  className="flex-1 py-3 rounded-xl bg-rose-500 text-white font-heading font-bold text-sm hover:bg-rose-600 shadow-sm transition tactile-press"
-                >
-                  Ya, Keluar
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
