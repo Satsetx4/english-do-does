@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { loadProgress } from './storage';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { loadProgress, setStoredTheme } from './storage';
 
 afterEach(() => {
   window.localStorage.clear();
@@ -34,5 +34,20 @@ describe('loadProgress', () => {
       bestPercentage: 0,
       soundEnabled: true,
     });
+  });
+});
+
+describe('setStoredTheme', () => {
+  it('applies the selected theme even when browser storage is unavailable', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage is unavailable');
+    });
+
+    expect(() => setStoredTheme('dark')).not.toThrow();
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    setItem.mockRestore();
+    setStoredTheme('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });
