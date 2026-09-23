@@ -14,19 +14,20 @@ import {
 import { LESSONS } from '../data/lessons';
 import type { LessonModule, UserProgress } from '../types';
 import { containerStagger, fadeInUpVariants, cardHover, cardTap } from '../lib/motion';
+import { formatPercentage } from '../lib/quiz';
 
 interface HomeViewProps {
   progress: UserProgress;
   onSelectLesson: (module: LessonModule) => void;
   onStartQuiz: (mode: 'quick' | 'level1' | 'level2' | 'level3') => void;
-  onResetData: () => void;
+  onRequestReset: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
   progress,
   onSelectLesson,
   onStartQuiz,
-  onResetData,
+  onRequestReset,
 }) => {
   const completedCount = progress.completedModules.length;
 
@@ -97,9 +98,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <Trophy className="w-5 h-5" />
           </div>
           <span className="font-heading font-extrabold text-xl text-slate-800 dark:text-slate-100">
-            {progress.bestScore}
+            {progress.quizzesTaken > 0 ? formatPercentage(progress.bestPercentage) : '—'}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Skor Tertinggi</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Akurasi Terbaik</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center shadow-sm">
@@ -138,12 +139,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             };
 
             return (
-              <motion.div
+              <motion.button
+                type="button"
                 key={mod.id}
                 whileHover={cardHover}
                 whileTap={cardTap}
                 onClick={() => onSelectLesson(mod)}
-                className="group cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                className="group w-full text-left cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
@@ -172,7 +174,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </span>
                   <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${colorGradients[mod.color]}`} />
                 </div>
-              </motion.div>
+              </motion.button>
             );
           })}
         </div>
@@ -189,11 +191,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {/* Quick Quiz */}
-          <motion.div
+          <motion.button
+            type="button"
             whileHover={cardHover}
             whileTap={cardTap}
             onClick={() => onStartQuiz('quick')}
-            className="cursor-pointer rounded-2xl p-5 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 border-2 border-indigo-200 dark:border-indigo-800/80 shadow-sm hover:shadow-md transition-all"
+            className="w-full text-left cursor-pointer rounded-2xl p-5 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 border-2 border-indigo-200 dark:border-indigo-800/80 shadow-sm hover:shadow-md transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
           >
             <div className="flex items-center gap-3 mb-2.5">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-500/20">
@@ -211,14 +214,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Kombinasi acak pilihan ganda, dialog, dan susun kalimat untuk menguji insting grammar kamu.
             </p>
-          </motion.div>
+          </motion.button>
 
           {/* Level 1 */}
-          <motion.div
+          <motion.button
+            type="button"
             whileHover={cardHover}
             whileTap={cardTap}
             onClick={() => onStartQuiz('level1')}
-            className="cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/50 shadow-sm hover:shadow-md transition-all"
+            className="w-full text-left cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/50 shadow-sm hover:shadow-md transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
           >
             <div className="flex items-center gap-3 mb-2.5">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
@@ -236,14 +240,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Fokus mencocokkan subjek kata ganti dan nama benda tunggal/jamak.
             </p>
-          </motion.div>
+          </motion.button>
 
           {/* Level 2 */}
-          <motion.div
+          <motion.button
+            type="button"
             whileHover={cardHover}
             whileTap={cardTap}
             onClick={() => onStartQuiz('level2')}
-            className="cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-pink-400 dark:hover:border-pink-500/50 shadow-sm hover:shadow-md transition-all"
+            className="w-full text-left cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-pink-400 dark:hover:border-pink-500/50 shadow-sm hover:shadow-md transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
           >
             <div className="flex items-center gap-3 mb-2.5">
               <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center font-bold">
@@ -261,14 +266,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Tantangan kalimat tanya WH, percakapan dua orang, dan singkatan don't/doesn't.
             </p>
-          </motion.div>
+          </motion.button>
 
           {/* Level 3 */}
-          <motion.div
+          <motion.button
+            type="button"
             whileHover={cardHover}
             whileTap={cardTap}
             onClick={() => onStartQuiz('level3')}
-            className="cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500/50 shadow-sm hover:shadow-md transition-all"
+            className="w-full text-left cursor-pointer rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500/50 shadow-sm hover:shadow-md transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
           >
             <div className="flex items-center gap-3 mb-2.5">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
@@ -286,7 +292,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Soal-soal jebakan yang sering mengecoh: "Does he like...", "Do you do...", dsb.
             </p>
-          </motion.div>
+          </motion.button>
         </div>
       </motion.div>
 
@@ -302,8 +308,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <button
-          onClick={onResetData}
-          className="inline-flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors py-1 px-2.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
+          onClick={onRequestReset}
+          className="inline-flex min-h-11 items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors py-2 px-2.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
           title="Reset semua skor dan modul tuntas"
         >
           <RotateCcw className="w-3.5 h-3.5" />

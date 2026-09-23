@@ -13,10 +13,10 @@ import {
 import type { QuizResultRecord } from '../types';
 import { sound } from '../lib/sound';
 import { containerStagger, fadeInUpVariants, cardHover, cardTap } from '../lib/motion';
+import { formatPercentage, getPercentage, getQuizScore } from '../lib/quiz';
 
 interface ResultViewProps {
   results: QuizResultRecord[];
-  finalScore: number;
   totalQuestions: number;
   onPlayAgain: () => void;
   onGoHome: () => void;
@@ -24,12 +24,12 @@ interface ResultViewProps {
 
 export const ResultView: React.FC<ResultViewProps> = ({
   results,
-  finalScore,
   totalQuestions,
   onPlayAgain,
   onGoHome,
 }) => {
-  const percentage = Math.round((finalScore / totalQuestions) * 100);
+  const finalScore = getQuizScore(results);
+  const percentage = getPercentage(finalScore, totalQuestions);
   const isPassed = percentage >= 60;
   const isPerfect = percentage === 100;
 
@@ -68,7 +68,7 @@ export const ResultView: React.FC<ResultViewProps> = ({
           Skor: {finalScore} / {totalQuestions}
         </h2>
         <p className="text-indigo-100 text-sm sm:text-base font-medium mt-1">
-          Tingkat Ketepatan: <strong className="text-white">{percentage}%</strong>
+          Tingkat Ketepatan: <strong className="text-white">{formatPercentage(percentage)}</strong>
         </p>
 
         {/* Action Buttons */}

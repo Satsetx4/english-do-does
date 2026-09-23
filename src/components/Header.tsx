@@ -9,6 +9,7 @@ interface HeaderProps {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onOpenSettings?: () => void;
+  settingsButtonRef?: React.Ref<HTMLButtonElement>;
   rightBadge?: React.ReactNode;
 }
 
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   onToggleTheme,
   onOpenSettings,
+  settingsButtonRef,
   rightBadge,
 }) => {
   return (
@@ -30,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onBack}
               aria-label="Kembali"
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press"
+              className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -50,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onToggleSound}
             aria-label={soundEnabled ? 'Matikan Suara' : 'Nyalakan Suara'}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
             title={soundEnabled ? 'Suara Aktif' : 'Suara Bisu'}
           >
             {soundEnabled ? (
@@ -63,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onToggleTheme}
             aria-label="Ganti Tema Gelap / Terang"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press"
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
             title={theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
           >
             {theme === 'dark' ? (
@@ -75,9 +77,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           {onOpenSettings && (
             <button
+              ref={settingsButtonRef}
               onClick={onOpenSettings}
               aria-label="Pengaturan"
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press"
+              className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition tactile-press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
               title="Pengaturan"
             >
               <Settings className="w-5 h-5" />

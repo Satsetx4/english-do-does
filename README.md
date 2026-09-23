@@ -14,20 +14,19 @@ Platform web interaktif modern untuk menguasai kaidah tata bahasa Inggris **DO**
 - 🎮 **32 Butir Soal Cerdas & Multi-Tipe**:
   - **Pilihan Ganda Taktil**: Pilihan tombol berpegas dengan umpan balik cepat dan dukungan pintasan keyboard `1`-`4` & `Enter`.
   - **Percakapan Dua Arah (Dialog Bubbles)**: Simulasi percakapan interaktif dua karakter (Speaker A & B).
-  - **Susun Kalimat (Sentence Builder)**: Drag/tap chip kata beranimasi halus untuk menyusun struktur kalimat yang tepat.
-- 🎯 **3 Mode Arena Kuis**:
+  - **Susun Kalimat (Sentence Builder)**: Tap/klik chip kata untuk menyusun struktur kalimat yang tepat.
+- 🎯 **4 Mode Arena Kuis**:
   - *Latihan Cepat (Quick Mix)*: 10 soal acak lintas level.
   - *Level 1: Dasar Pemula* (10 soal pengenalan subjek).
   - *Level 2: Intermediet* (12 soal tanya, negatif, & singkatan).
   - *Level 3: Master & Jebakan* (10 soal jebakan kompleks & do ganda).
 - 🔊 **Audio Pengucapan & Efek Suara Bebas Dependensi**:
   - Web Audio API synthesizer murni untuk SFX (Chime, Thud, Fanfare, Pop) tanpa resiko kegagalan CORS/hotlink.
-  - Text-to-Speech (TTS) natural untuk melatih pelafalan kalimat bahasa Inggris.
+  - Text-to-Speech browser untuk melatih pelafalan kalimat bahasa Inggris; mute menghentikan audio dan ucapan aktif.
 - 🌓 **Tema Gelap & Terang Sempurna (Anti-FOUC)**:
-  - Kontras tajam yang lolos uji aksesibilitas di mode Gelap maupun Terang.
   - Boot script pencegah kedipan (*anti-flash*) di `<head>`.
 - 💾 **State Continuity & Reset Mandiri**:
-  - Progres modul, skor rekor, dan perolehan bintang tersimpan aman di `localStorage` dengan penanganan defensif.
+  - Progres modul, akurasi terbaik, dan perolehan bintang tersimpan di `localStorage` dengan penanganan defensif.
   - Opsi reset data ke 0% kapan saja di pengaturan dan footer.
 
 ---
@@ -43,7 +42,7 @@ Platform web interaktif modern untuk menguasai kaidah tata bahasa Inggris **DO**
 
 ---
 
-## 🚀 Menjalankan Secara Lokal
+## 🚀 Development
 
 ```bash
 # Pasang dependensi
@@ -52,9 +51,17 @@ npm install
 # Jalankan server pengembangan
 npm run dev
 
+# Periksa lint
+npm run lint
+
+# Jalankan regression tests
+npm test
+
 # Bangun untuk produksi
 npm run build
 ```
+
+Struktur utama: `src/components` berisi layar dan dialog React, `src/data` berisi materi dan bank soal, dan `src/lib` berisi logika kuis, audio, animasi, serta localStorage.
 
 ---
 

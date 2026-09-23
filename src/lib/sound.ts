@@ -1,7 +1,24 @@
 // Web Audio API Synthesizer - 100% Offline & Fail-Safe SFX
 class SoundController {
   private ctx: AudioContext | null = null;
-  public enabled: boolean = true;
+  private isEnabled = true;
+
+  get enabled(): boolean {
+    return this.isEnabled;
+  }
+
+  set enabled(enabled: boolean) {
+    const wasEnabled = this.isEnabled;
+    this.isEnabled = enabled;
+
+    if (wasEnabled && !enabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Ignore if browser blocks speech cancellation
+      }
+    }
+  }
 
   private getContext(): AudioContext | null {
     if (!this.enabled) return null;
@@ -131,7 +148,9 @@ class SoundController {
 
   // Speech synthesis for clear English pronunciation
   speak(sentence: string): void {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (!this.enabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (typeof SpeechSynthesisUtterance === 'undefined') return;
+
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(sentence);
